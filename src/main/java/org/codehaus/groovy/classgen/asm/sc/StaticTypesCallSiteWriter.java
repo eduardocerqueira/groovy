@@ -597,32 +597,26 @@ public class StaticTypesCallSiteWriter extends CallSiteWriter {
     }
 
     /**
-     * Direct access is allowed from the declaring class of the field and sometimes from inner and peer types.
-     *
      * @return {@code true} if GETFIELD or GETSTATIC is safe for given field and receiver
      */
     private static boolean isDirectAccessAllowed(final FieldNode field, final ClassNode receiver) {
-        // first, direct access from anywhere for public fields
+        // a public field is accessible from anywhere
         if (field.isPublic()) return true;
 
-        ClassNode declaringType = field.getDeclaringClass().redirect(), receiverType = receiver.redirect();
+        ClassNode declaringType = field.getDeclaringClass().redirect();
 
-        // next, direct access from within the declaring class
-        if (receiverType.equals(declaringType)) return true;
+        // any field is accessible from the declaring class
+        if (receiver.equals(declaringType)) return true;
 
+        // a private field isn't accessible beyond the declaring class
         if (field.isPrivate()) return false;
 
-        // next, direct access from within the declaring package
+        // a protected field is accessible from any subclass of the declaring class
+        if (field.isProtected() && receiver.isDerivedFrom(declaringType)) return true;
+
+        // a protected or package-private field is accessible from the declaring package
         if (Objects.equals(receiver.getPackageName(), declaringType.getPackageName())) return true;
 
-        // last, inner class access to outer class fields
-        receiverType = receiverType.getOuterClass();
-        while (receiverType != null) {
-            if (receiverType.equals(declaringType)) {
-                return true;
-            }
-            receiverType = receiverType.getOuterClass();
-        }
         return false;
     }
 
